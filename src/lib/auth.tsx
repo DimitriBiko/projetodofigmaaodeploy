@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, type Profile } from './supabase'
+import { hasSupabaseConfig, supabase, type Profile } from './supabase'
 
 type AuthContextValue = {
   session: Session | null
@@ -16,6 +16,7 @@ type AuthContextValue = {
   profile: Profile | null
   loading: boolean
   isAdmin: boolean
+  configError: string | null
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (input: {
     name: string
@@ -28,7 +29,11 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+const CONFIG_ERROR =
+  'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel (Environment Variables) e faça um novo deploy.'
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
+  if (!hasSupabaseConfig) return null
   const { data, error } = await supabase
     .from('users')
     .select(
@@ -48,8 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const configError = hasSupabaseConfig ? null : CONFIG_ERROR
 
   const refreshProfile = useCallback(async () => {
+    if (!hasSupabaseConfig) return
     const uid = (await supabase.auth.getUser()).data.user?.id
     if (!uid) {
       setProfile(null)
@@ -60,6 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+
+    if (!hasSupabaseConfig) {
+      setLoading(false)
+      return
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
@@ -89,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!hasSupabaseConfig) return { error: CONFIG_ERROR }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
     return { error: null }
@@ -96,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async ({ name, email, password }: { name: string; email: string; password: string }) => {
+      if (!hasSupabaseConfig) return { error: CONFIG_ERROR }
       const handleBase = email
         .split('@')[0]
         .toLowerCase()
@@ -116,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const signOut = useCallback(async () => {
+    if (!hasSupabaseConfig) return
     await supabase.auth.signOut()
     setProfile(null)
   }, [])
@@ -127,12 +142,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       loading,
       isAdmin: !!profile?.is_admin,
+      configError,
       signIn,
       signUp,
       signOut,
       refreshProfile,
     }),
-    [session, profile, loading, signIn, signUp, signOut, refreshProfile],
+    [session, profile, loading, configError, signIn, signUp, signOut, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

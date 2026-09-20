@@ -31,7 +31,7 @@ type Screen =
   | 'members'
 
 export default function App() {
-  const { session, loading, signOut, isAdmin, profile } = useAuth()
+  const { session, loading, signOut, isAdmin, profile, configError } = useAuth()
   const [screen, setScreen] = useState<Screen>('login')
   const [chatContactId, setChatContactId] = useState<string>('renata')
   const [profileId, setProfileId] = useState<string>('renata')
@@ -90,6 +90,17 @@ export default function App() {
     return (
       <div className="grid h-dvh w-full place-items-center bg-canvas text-neutral-500">
         Carregando…
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="grid h-dvh w-full place-items-center bg-canvas px-6">
+        <div className="max-w-md rounded-[18px] bg-surface p-6 text-center shadow-sm">
+          <p className="text-[17px] font-semibold text-ink">Configuração incompleta</p>
+          <p className="mt-2 text-[14px] leading-relaxed text-neutral-600">{configError}</p>
+        </div>
       </div>
     )
   }

@@ -1,22 +1,30 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-if (!url || !anonKey) {
+export const hasSupabaseConfig = Boolean(url && anonKey)
+
+if (!hasSupabaseConfig) {
   console.warn(
-    '[Gooday] Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env para autenticação.',
+    '[Gooday] Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env / Vercel para autenticação.',
   )
 }
 
-export const supabase = createClient(url ?? '', anonKey ?? '', {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'gooday-auth',
-  },
-})
+/**
+ * Never call createClient with empty strings — @supabase/supabase-js throws
+ * "supabaseUrl is required" and crashes the whole app before React mounts.
+ */
+export const supabase: SupabaseClient = hasSupabaseConfig
+  ? createClient(url!, anonKey!, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'gooday-auth',
+      },
+    })
+  : (null as unknown as SupabaseClient)
 
 export type Profile = {
   id: string
